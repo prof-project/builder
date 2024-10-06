@@ -345,9 +345,6 @@ func (api *BlockValidationAPI) validateProfBlock(profBlock *types.Block, propose
 	}
 
 	return &ProfSimResp{value, payload}, nil
-
-	// return &ProfSimResp{uint256.NewInt(0), phase0.Hash32(block.Hash())}, nil
-
 }
 
 func (api *BlockValidationAPI) validateBlock(block *types.Block, msg *builderApiV1.BidTrace, registeredGasLimit uint64) error {

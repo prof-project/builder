@@ -1116,3 +1116,98 @@ func TestValidateBuilderSubmissionV2_ExcludeWithdrawals(t *testing.T) {
 	require.NoError(t, err)
 	require.ErrorContains(t, api.ValidateBuilderSubmissionV2(req), "payment")
 }
+
+func TestAppendProfBundle(t *testing.T) {
+	genesis, blocks := generateMergeChain(10, true)
+
+	// Set cancun time to last block + 5 seconds
+	time := blocks[len(blocks)-1].Time() + 5
+	genesis.Config.ShanghaiTime = &time
+	genesis.Config.CancunTime = &time
+	os.Setenv("BUILDER_TX_SIGNING_KEY", testBuilderKeyHex)
+
+	n, ethservice := startEthService(t, genesis, blocks)
+	ethservice.Merger().ReachTTD()
+	defer n.Close()
+
+	api := NewBlockValidationAPI(ethservice, nil, true, true)
+	parent := ethservice.BlockChain().CurrentHeader()
+
+	api.eth.APIBackend.Miner().SetEtherbase(testBuilderAddr)
+
+	statedb, _ := ethservice.BlockChain().StateAt(parent.Root)
+	nonce := statedb.GetNonce(testAddr)
+	signer := types.LatestSigner(ethservice.BlockChain().Config())
+
+	// Create transactions that transfer funds to the fee recipient
+	tx1, _ := types.SignTx(types.NewTransaction(nonce, testValidatorAddr, big.NewInt(10), 21000, big.NewInt(2*params.InitialBaseFee), nil), signer, testKey)
+	tx2, _ := types.SignTx(types.NewTransaction(nonce+1, testValidatorAddr, big.NewInt(20), 21000, big.NewInt(2*params.InitialBaseFee), nil), signer, testKey)
+
+	txData1, _ := tx1.MarshalBinary()
+	txData2, _ := tx2.MarshalBinary()
+
+	// Create a PBS payload
+	execData, err := assembleBlock(api, parent.Hash(), &engine.PayloadAttributes{
+		Timestamp:             parent.Time + 5,
+		SuggestedFeeRecipient: testValidatorAddr,
+		BeaconRoot:            &common.Hash{42},
+	})
+	require.NoError(t, err)
+
+	// Check if execData is nil
+	if execData == nil {
+		t.Fatal("execData is nil")
+	}
+
+	payload, err := ExecutableDataToExecutionPayloadV3(execData)
+	require.NoError(t, err)
+
+	// Check if payload is nil
+	if payload == nil {
+		t.Fatal("ExecutableDataToExecutionPayloadV3 returned nil")
+	}
+
+	// Create ProfSimReq
+	profSimReq := &ProfSimReq{
+		PbsPayload: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+			ExecutionPayload: payload,
+			BlobsBundle: &builderApiDeneb.BlobsBundle{
+				Commitments: make([]deneb.KZGCommitment, 0),
+				Proofs:      make([]deneb.KZGProof, 0),
+				Blobs:       make([]deneb.Blob, 0),
+			},
+		},
+		ProfBundle: &ProfBundleRequest{
+			slot:         0,
+			Transactions: []string{fmt.Sprintf("0x%x", txData1), fmt.Sprintf("0x%x", txData2)},
+			bundleHash:   phase0.Hash32{},
+		},
+		ParentBeaconBlockRoot: common.Hash{42},
+		RegisteredGasLimit:    execData.GasLimit,
+		ProposerFeeRecipient:  testValidatorAddr,
+	}
+
+	// Call AppendProfBundle
+	resp, err := api.AppendProfBundle(profSimReq)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// Verify the response
+	require.NotNil(t, resp.Value)
+	require.NotNil(t, resp.ExecutionPayload)
+
+	// Verify that the transactions were included
+	require.Equal(t, len(profSimReq.ProfBundle.Transactions)+len(payload.Transactions), len(resp.ExecutionPayload.ExecutionPayload.Transactions))
+
+	// Verify that the block hash changed
+	require.NotEqual(t, payload.BlockHash, resp.ExecutionPayload.ExecutionPayload.BlockHash)
+
+	// Verify that the gas used increased
+	require.Greater(t, resp.ExecutionPayload.ExecutionPayload.GasUsed, payload.GasUsed)
+
+	// Log both values
+	t.Logf("TEST value increase for fee recepient PROF: %s", resp.Value.String())
+
+	// Verify that the value is non-zero (some profit was made for the fee recipient)
+	require.True(t, resp.Value.Gt(uint256.NewInt(0)))
+}

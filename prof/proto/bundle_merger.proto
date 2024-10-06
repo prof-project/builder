@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+import "enrich_message.proto";
+
+package com.tumberger.bundlemerger.v1;
+
+option go_package = "github.com/tumberger/bundle-merger/profpb";
+
+// The BundleMerger service provides an interface for the relay to enrich blocks.
+// Currently no streams
+service BundleMerger {
+  // EnrichBlock is used to propose a new block to the network.
+  rpc EnrichBlock (stream EnrichBlockRequest) returns (stream EnrichBlockResponse);
+
+  // GetEnrichPayload is used to receive the payload from the bundle merger, given a signed header
+  rpc GetEnrichedPayload (GetEnrichedPayloadRequest) returns (GetEnrichedPayloadResponse);
+}

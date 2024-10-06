@@ -1,0 +1,164 @@
+syntax = "proto3";
+
+package com.tumberger.bundlemerger.v1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/tumberger/bundle-merger/profpb";
+
+// EnrichBlock RPC messages
+message EnrichBlockRequest {
+  // The UUID of the block proposal.
+  string uuid = 1;
+  // The payload bundle to be enriched.
+  ExecutionPayloadAndBlobsBundle payload_bundle = 2;
+  // The bid trace for the block proposal.
+  BidTrace bid_trace = 3;
+  // The parent beacon block root.
+  bytes parent_beacon_block_root = 4;
+}
+
+message EnrichBlockResponse {
+  // The UUID of the block proposal.
+  string uuid = 1;
+  // The enriched header.
+  ExecutionPayloadHeader enriched_header = 2;
+  // The commitments to the blobs in the payload.
+  repeated KZGCommitment commitments = 3;
+  // The enriched bid value.
+  string enriched_bid_value = 4; // uint256.Int represented as a string
+}
+
+// GetEnrichedPayload RPC messages
+message GetEnrichedPayloadRequest {
+  // The UUID of the block proposal.
+  string uuid = 1;
+  // The signed blinded beacon block containing the signed header.
+  SignedBlindedBeaconBlock signed_blinded_beacon_block = 2;
+}
+
+message GetEnrichedPayloadResponse {
+  // The UUID of the block proposal.
+  string uuid = 1;
+  // The payload bundle containing the enriched payload.
+  oneof payload_or_empty {
+    ExecutionPayloadAndBlobsBundle payload_bundle = 2;
+    google.protobuf.Empty empty = 3;
+  }
+}
+
+// Message definitions
+
+// ExecutionPayloadAndBlobsBundle message
+message ExecutionPayloadAndBlobsBundle {
+  ExecutionPayload execution_payload = 1;
+  BlobsBundle blobs_bundle = 2;
+}
+
+// ExecutionPayload message
+message ExecutionPayload {
+  bytes parent_hash = 1;
+  bytes state_root = 2;
+  bytes receipts_root = 3;
+  bytes logs_bloom = 4;
+  bytes prev_randao = 5;
+  bytes extra_data = 6;
+  bytes base_fee_per_gas = 7;
+  bytes fee_recipient = 8;
+  bytes block_hash = 9;
+  repeated compressTx transactions = 10;
+  repeated Withdrawal withdrawals = 11;
+  uint64 block_number = 12;
+  uint64 gas_limit = 13;
+  uint64 timestamp = 14;
+  uint64 gas_used = 15;
+  uint64 blob_gas_used = 16;
+  uint64 excess_blob_gas = 17;
+}
+
+message compressTx {
+  bytes rawData = 1;
+  uint32 shortID = 2;
+}
+
+message Withdrawal {
+  uint64 index = 1;
+  uint64 validator_index = 2;
+  bytes address = 3; // 20 bytes
+  uint64 amount = 4;
+}
+
+message BlobsBundle {
+  repeated bytes commitments = 1;
+  repeated bytes proofs = 2;
+  repeated bytes blobs = 3;
+}
+
+// KZGCommitment message
+message KZGCommitment {
+  bytes commitment = 1; // 48 bytes
+}
+
+// KZGProof message
+message KZGProof {
+  bytes proof = 1; // 48 bytes
+}
+
+// Blob message
+message Blob {
+  bytes data = 1; // Up to 131072 bytes
+}
+
+// BidTrace message
+message BidTrace {
+  uint64 slot = 1;
+  bytes parent_hash = 2;             // 32 bytes
+  bytes block_hash = 3;              // 32 bytes
+  bytes builder_pubkey = 4;          // 48 bytes
+  bytes proposer_pubkey = 5;         // 48 bytes
+  bytes proposer_fee_recipient = 6;  // 20 bytes
+  uint64 gas_limit = 7;
+  uint64 gas_used = 8;
+  string value = 9;                  // uint256.Int as a string
+}
+
+// ExecutionPayloadHeader message
+message ExecutionPayloadHeader {
+  bytes parent_hash = 1;          // 32 bytes
+  bytes fee_recipient = 2;        // 20 bytes
+  bytes state_root = 3;           // 32 bytes
+  bytes receipts_root = 4;        // 32 bytes
+  bytes logs_bloom = 5;           // 256 bytes
+  bytes prev_randao = 6;          // 32 bytes
+  uint64 block_number = 7;
+  uint64 gas_limit = 8;
+  uint64 gas_used = 9;
+  uint64 timestamp = 10;
+  bytes extra_data = 11;          // Variable length
+  string base_fee_per_gas = 12;   // uint256.Int as a string
+  bytes block_hash = 13;          // 32 bytes
+  bytes transactions_root = 14;   // 32 bytes
+  bytes withdrawals_root = 15;    // 32 bytes
+  uint64 blob_gas_used = 16;
+  uint64 excess_blob_gas = 17;
+}
+
+// SignedBlindedBeaconBlock message
+message SignedBlindedBeaconBlock {
+  BlindedBeaconBlock message = 1;
+  bytes signature = 2; // 96 bytes
+}
+
+// BlindedBeaconBlock message
+message BlindedBeaconBlock {
+  uint64 slot = 1;
+  uint64 proposer_index = 2;
+  bytes parent_root = 3;    // 32 bytes
+  bytes state_root = 4;     // 32 bytes
+  bytes body = 5; // Data type currently not defined further, should be BlindedBeaconBlockBody
+}
+
+// BlindedBeaconBlockBody message
+// message BlindedBeaconBlockBody {
+//   // Define fields as per your requirements
+// }
