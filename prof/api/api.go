@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/log"
 	pb "github.com/ethereum/go-ethereum/prof/profpb" // Add this import
 	"github.com/ethereum/go-ethereum/prof/utils"
 	fbutils "github.com/flashbots/go-boost-utils/utils"
@@ -132,7 +131,7 @@ func (s *BundleMergerServer) validateProfBlock(profBlock *types.Block, proposerF
 		return nil, err
 	}
 	profBlockFinal := profBlock.WithSeal(header)
-	log.Info("validated prof block", "number", profBlockFinal.NumberU64(), "parentHash", profBlockFinal.ParentHash())
+	// log.Info("validated prof block", "number", profBlockFinal.NumberU64(), "parentHash", profBlockFinal.ParentHash())
 
 	valueBig := value.ToBig()
 
@@ -140,7 +139,7 @@ func (s *BundleMergerServer) validateProfBlock(profBlock *types.Block, proposerF
 
 	payload, err := getDenebPayload(executableData)
 	if err != nil {
-		log.Error("could not format execution payload", "err", err)
+		// log.Error("could not format execution payload", "err", err)
 		return nil, err
 	}
 
