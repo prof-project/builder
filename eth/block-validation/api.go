@@ -269,7 +269,7 @@ func (api *BlockValidationAPI) AppendProfBundle(params *ProfSimReq) (*ProfSimRes
 		return nil, err
 	}
 
-	profValidationResp, err := api.validateProfBlock(block, params.ProposerFeeRecipient, params.RegisteredGasLimit)
+	profValidationResp, err := api.ValidateProfBlock(block, params.ProposerFeeRecipient, params.RegisteredGasLimit)
 	if err != nil {
 		log.Error("invalid payload", "hash", block.Hash, "number", block.NumberU64(), "parentHash", block.ParentHash, "err", err)
 		return nil, err
